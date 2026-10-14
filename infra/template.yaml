@@ -1,0 +1,209 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Perihelion browser game - static single page site in a private S3 bucket served
+  only through CloudFront with origin access control, so the bucket is never public
+  and every request is HTTPS with strict security headers.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: viewer -> CloudFront (HTTPS, edge cache, security headers) -> OAC SigV4 -> private S3 bucket; site files uploaded separately from perihelion/site
+    must:
+      - bucket never public; only this distribution (via OAC + aws:SourceArn) may read objects
+    ref:
+      - at: ../README.md
+        has: deploy, redeploy + teardown steps
+
+Parameters:
+  PriceClass:
+    Type: String
+    Default: PriceClass_All
+    AllowedValues:
+      - PriceClass_100
+      - PriceClass_200
+      - PriceClass_All
+    Description: CloudFront edge locations to serve from. PriceClass_All gives the lowest latency worldwide; PriceClass_100 is cheapest.
+
+Resources:
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: holds static game files (html/css/js/svg); versioned so a bad deploy can be rolled back; Delete policy because all content is rebuilt from perihelion/site (no user data); guard suppressions - object lock would block redeploys, replication + access logs not worth it for reproducible public content, public RW ACL rule false-positives when AccessControl absent (ACLs disabled via BucketOwnerEnforced)
+        must:
+          - keep all 4 public access blocks on; reads go through CloudFront only
+          - empty bucket (all versions) before stack delete or delete fails
+        mutable: change-with-constraints
+      guard:
+        SuppressedRules:
+          - S3_BUCKET_DEFAULT_LOCK_ENABLED
+          - S3_BUCKET_REPLICATION_ENABLED
+          - S3_BUCKET_LOGGING_ENABLED
+          - S3_BUCKET_NO_PUBLIC_RW_ACL
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-versions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: grants read to CloudFront service principal scoped to this distribution (confused-deputy safe) & denies non-TLS access
+        must:
+          - keep aws:SourceArn condition; without it any CloudFront distribution could read the bucket
+          - keep aws:SecureTransport deny
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontReadViaOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${SiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt SiteBucket.Arn
+              - !Sub '${SiteBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: CloudFront signs origin requests w/ SigV4 so the bucket can stay private; OAC over legacy OAI (supports SSE-KMS, all regions)
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-oac'
+        Description: Lets CloudFront sign requests to the private site bucket
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  SecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: adds CSP, HSTS, nosniff, frame deny & permissions policy at the edge; site has no inline scripts/styles so CSP can be 'self' only
+        must:
+          - CSP must allow 'self' for script, style and img or the game will not load
+        mutable: review-required
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-security-headers'
+        Comment: Security headers for the Perihelion game
+        SecurityHeadersConfig:
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 63072000
+            IncludeSubdomains: true
+            Preload: false
+            Override: true
+        CustomHeadersConfig:
+          Items:
+            - Header: Permissions-Policy
+              Value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+              Override: true
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: global HTTPS edge for the game; managed CachingOptimized policy (objects set their own Cache-Control); 403 from S3 (missing key) -> index.html w/ 404 status; guard suppressions - no custom domain so default *.cloudfront.net cert (custom cert, SNI & TLS1.2 min need ACM cert in us-east-1), single origin (no failover group), access logs omitted for a hobby site (add DistributionConfig.Logging if needed)
+        must:
+          - origin must use OriginAccessControl; bucket policy trusts only this distribution ARN
+        mutable: change-with-constraints
+        mutability:
+          PriceClass: free-to-tune
+      guard:
+        SuppressedRules:
+          - CLOUDFRONT_CUSTOM_SSL_CERTIFICATE
+          - CLOUDFRONT_SNI_ENABLED
+          - CLOUDFRONT_MINIMUM_PROTOCOL_VERSION_RULE
+          - CLOUDFRONT_ORIGIN_FAILOVER_ENABLED
+          - CLOUDFRONT_ACCESSLOGS_ENABLED
+    Properties:
+      DistributionConfig:
+        Comment: Perihelion browser game
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: !Ref PriceClass
+        Origins:
+          - Id: site-bucket
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: site-bucket
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+          ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 60
+
+Outputs:
+  SiteUrl:
+    Description: Public HTTPS URL of the game
+    Value: !Sub 'https://${Distribution.DomainName}'
+  BucketName:
+    Description: Private S3 bucket that holds the site files (upload target)
+    Value: !Ref SiteBucket
+  DistributionId:
+    Description: CloudFront distribution ID, used for cache invalidations after redeploys
+    Value: !Ref Distribution

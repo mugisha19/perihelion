@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#04050d">
+  <meta name="description" content="Perihelion is a one-button arcade game. Hold to swing out to the outer orbit, release to fall back in, and dodge the debris circling a burning star.">
+  <title>Perihelion</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <canvas id="game" tabindex="-1" aria-label="Game field. Hold Space, the up arrow, or touch and hold to swing to the outer orbit."></canvas>
+
+  <header class="topbar">
+    <button class="icon-btn" id="pauseBtn" type="button" aria-label="Pause" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+    <div class="score-wrap" id="scoreWrap" hidden>
+      <div class="score" id="score">0</div>
+      <div class="combo" id="combo"></div>
+    </div>
+    <button class="icon-btn" id="muteBtn" type="button" aria-label="Mute sound" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path class="spk" d="M4 9h4l5-4v14l-5-4H4z"/>
+        <path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>
+        <path class="cross" d="M16 9l5 6M21 9l-5 6"/>
+      </svg>
+    </button>
+  </header>
+
+  <main>
+    <section class="screen" id="menu" aria-labelledby="title">
+      <div class="card">
+        <h1 id="title">Perihelion</h1>
+        <p class="tag">Hold to swing out. Release to fall in.</p>
+        <ul class="legend">
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="i-orb" cx="12" cy="12" r="6"/></svg><span>Grab orbs and chain them for combos</span></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-rock" d="M7 5l7-1 5 5-1 7-6 4-6-3-2-6z"/></svg><span>Don't touch the debris</span></li>
+        </ul>
+        <button class="btn" id="playBtn" type="button">Play</button>
+        <p class="best">Best <strong id="menuBest">0</strong></p>
+        <p class="hint hint-key">Space, &uarr; or mouse to swing &middot; P pause &middot; M mute</p>
+        <p class="hint hint-touch">Touch and hold anywhere to swing out</p>
+      </div>
+    </section>
+
+    <section class="screen" id="pause" aria-labelledby="pauseTitle" hidden>
+      <div class="card">
+        <h2 id="pauseTitle">Paused</h2>
+        <div class="row">
+          <button class="btn" id="resumeBtn" type="button">Resume</button>
+          <button class="btn ghost" id="quitBtn" type="button">Menu</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="over" aria-labelledby="overTitle" hidden>
+      <div class="card">
+        <h2 id="overTitle" class="eyebrow">Burned up</h2>
+        <div class="final" id="finalScore" aria-live="polite">0</div>
+        <p class="badge" id="newBest" hidden>New best</p>
+        <p class="best">Best <strong id="finalBest">0</strong></p>
+        <p class="stats" id="stats"></p>
+        <div class="row">
+          <button class="btn" id="againBtn" type="button">Play again</button>
+          <button class="btn ghost" id="menuBtn" type="button">Menu</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
