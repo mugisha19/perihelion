@@ -52,7 +52,15 @@
         <p class="hint hint-key">Space, &uarr; or mouse to swing &middot; P pause &middot; M mute</p>
         <p class="hint hint-touch">Touch and hold anywhere to swing out</p>
         <button class="btn ghost install" id="installBtn" type="button" hidden>Install app</button>
-        <p class="hint hint-ios" id="iosHint" hidden>To install: tap Share, then Add to Home Screen</p>
+      </div>
+    </section>
+
+    <section class="screen" id="installHelp" aria-labelledby="installTitle" hidden>
+      <div class="card">
+        <h2 id="installTitle">Install the app</h2>
+        <p class="tag" id="installIntro"></p>
+        <ol class="steps" id="installSteps"></ol>
+        <button class="btn" id="installClose" type="button">Got it</button>
       </div>
     </section>
 

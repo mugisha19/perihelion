@@ -2,8 +2,9 @@
 
 // Service worker: makes the game load instantly and play offline once visited.
 // Bump VERSION whenever any file in site/ changes so installed copies pick up the update.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `perihelion-${VERSION}`;
+const NETWORK_TIMEOUT_MS = 3000; // on a slow connection, fall back to the cached copy after this long
 
 const PRECACHE = [
   './',
@@ -42,35 +43,26 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  if (req.mode === 'navigate') {
-    event.respondWith(networkFirst(req));
-  } else {
-    event.respondWith(staleWhileRevalidate(req));
-  }
+  // Every page load is stored under one key so any start URL (with or without a query) works offline.
+  event.respondWith(networkFirst(req, req.mode === 'navigate' ? 'index.html' : req));
 });
 
-// Pages: try the network so updates show up quickly, fall back to the cached shell when offline.
-async function networkFirst(req) {
+// Network first, so players always get the newest files and never a stale script paired with new
+// markup. The cache is the fallback when offline or when the network is slower than the timeout.
+async function networkFirst(req, key) {
   const cache = await caches.open(CACHE);
-  try {
-    const res = await fetch(req);
-    if (res.ok) cache.put('index.html', res.clone());
+  const network = fetch(req).then((res) => {
+    if (res.ok) cache.put(key, res.clone());
     return res;
-  } catch {
-    return (await cache.match('index.html')) || Response.error();
-  }
-}
+  });
+  network.catch(() => { /* handled below, or irrelevant once a cached copy was served */ });
 
-// Assets: serve the cached copy immediately and refresh it in the background.
-async function staleWhileRevalidate(req) {
-  const cache = await caches.open(CACHE);
-  const cached = await cache.match(req, { ignoreSearch: true });
-  const refresh = fetch(req)
-    .then((res) => {
-      if (res.ok) cache.put(req, res.clone());
-      return res;
-    })
-    .catch(() => null);
-  if (cached) return cached;
-  return (await refresh) || Response.error();
+  const timeout = new Promise((_, reject) => setTimeout(reject, NETWORK_TIMEOUT_MS));
+  try {
+    return await Promise.race([network, timeout]);
+  } catch {
+    const cached = await cache.match(key, { ignoreSearch: true });
+    if (cached) return cached;
+    return network.catch(() => Response.error());
+  }
 }
