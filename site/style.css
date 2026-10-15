@@ -82,22 +82,36 @@ html, body {
 .icon-btn[aria-pressed="true"] .cross { display: inline; }
 #muteBtn[aria-pressed="true"] { color: var(--muted); } /* pressed means muted */
 
-/* Invisible switch that iPhones tick for (see Haptics in game.js): rendered, but off-screen and transparent. */
-.haptic-probe {
-  position: fixed;
-  left: -200px;
-  top: 0;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Vibration button: outline icon; pressed means vibration is ON, so it dims and gets a slash when off. */
+/* Vibration button: outline icon; pressed means vibration is ON, so it dims and gets a slash when off.
+   On iPhone/iPad (data-unavailable) it is dimmed and slashed too, and tapping it explains why. */
 .icon-btn .line-icon { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn .slash { display: none; }
-#hapticBtn[aria-pressed="false"] { color: var(--muted); }
-#hapticBtn[aria-pressed="false"] .slash { display: inline; }
+#hapticBtn[aria-pressed="false"],
+#hapticBtn[data-unavailable] { color: var(--muted); }
+#hapticBtn[aria-pressed="false"] .slash,
+#hapticBtn[data-unavailable] .slash { display: inline; }
+
+/* A short note that appears under the top bar and fades away by itself. */
+.toast {
+  position: fixed;
+  z-index: 6;
+  left: 50%;
+  top: calc(max(12px, env(safe-area-inset-top)) + 56px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(340px, calc(100vw - 32px));
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(9, 12, 28, 0.92);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
 
 .score-wrap { text-align: center; line-height: 1; padding-top: 2px; }
 .score {

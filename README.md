@@ -16,7 +16,7 @@ longer you survive.
 - Plain HTML, CSS and JavaScript with no build step and no dependencies
 - Canvas rendering, synthesized Web Audio sound effects, works on desktop and mobile
 - Installable as an app on phones and works offline (see [Install on your phone](#install-on-your-phone))
-- Vibration feedback on Android, and experimental ticks on iPhone (see [Vibration](#vibration)), with an on/off button
+- Vibration feedback on Android (see [Vibration](#vibration)), with an on/off button; iPhones cannot vibrate from a web page
 - Best score, mute and vibration settings are kept in `localStorage`
 - `P` / `Esc` pauses, `M` mutes, and the game auto-pauses when the tab loses focus
 
@@ -71,18 +71,12 @@ buzz when switched on, and remembers the choice. Pausing cancels any vibration i
 **Android (full support):** Chromium-based browsers (Chrome, Edge, Samsung Internet, Opera), in the
 browser or installed as an app, with the patterns and strengths above.
 
-**iPhone and iPad (experimental, single ticks only):** Safari, and so every iPhone/iPad browser,
-has no Vibration API. As a workaround the game clicks a hidden `<input type="checkbox" switch>`,
-which makes Safari 17.4+ play its light system tick. This is an undocumented quirk, so:
-
-- it can only play one fixed light tick, never a pattern or a strength, and each pattern above is
-  played as a series of ticks at the start of its pulses;
-- WebKit limits it to user gestures, so in practice you feel the tick when you press, release,
-  tap Play and tap the vibration button, but probably not for orbs or crashes, which happen between taps;
-- it was reportedly closed in iOS 26.5, so on newer iOS versions nothing may happen at all.
-
-Where it does not work nothing breaks. Tapping the vibration button is a quick way to check: it
-ticks once when switched on.
+**iPhone and iPad (not possible):** Safari, and so every iPhone/iPad browser, has no Vibration API,
+so a web page cannot vibrate the phone. There the vibration button is shown dimmed with a slash, and
+tapping it shows a short note saying so (it fades after 5 seconds). A workaround that some sites use,
+clicking a hidden `<input type="checkbox" switch>` so that Safari plays its tick, was tried and did
+nothing on a real iPhone, and it was reportedly closed in iOS 26.5, so it was removed. Native iOS
+apps can use haptics; web pages, including installed ones, cannot.
 
 **Firefox and computers without a touch screen:** nothing to vibrate, so the button is hidden and
 nothing is called. The patterns live in the `Haptics` object in `site/game.js` (Android support
