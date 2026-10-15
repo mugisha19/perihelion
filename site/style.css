@@ -82,6 +82,17 @@ html, body {
 .icon-btn[aria-pressed="true"] .cross { display: inline; }
 #muteBtn[aria-pressed="true"] { color: var(--muted); } /* pressed means muted */
 
+/* Invisible switch that iPhones tick for (see Haptics in game.js): rendered, but off-screen and transparent. */
+.haptic-probe {
+  position: fixed;
+  left: -200px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Vibration button: outline icon; pressed means vibration is ON, so it dims and gets a slash when off. */
 .icon-btn .line-icon { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn .slash { display: none; }

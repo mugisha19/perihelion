@@ -16,7 +16,7 @@ longer you survive.
 - Plain HTML, CSS and JavaScript with no build step and no dependencies
 - Canvas rendering, synthesized Web Audio sound effects, works on desktop and mobile
 - Installable as an app on phones and works offline (see [Install on your phone](#install-on-your-phone))
-- Vibration feedback on Android (see [Vibration](#vibration)), with an on/off button
+- Vibration feedback on Android, and experimental ticks on iPhone (see [Vibration](#vibration)), with an on/off button
 - Best score, mute and vibration settings are kept in `localStorage`
 - `P` / `Esc` pauses, `M` mutes, and the game auto-pauses when the tab loses focus
 
@@ -68,11 +68,25 @@ The game uses the browser's Vibration API:
 The vibration button (phone icon next to the sound button) turns it on and off, gives a short
 buzz when switched on, and remembers the choice. Pausing cancels any vibration in progress.
 
-**It works in Chromium-based Android browsers**: Chrome, Edge, Samsung Internet and Opera, in the
-browser or installed as an app. **Firefox and Safari do not support the Vibration API**, and on
-iPhones and iPads every browser uses Safari's engine, so none of them can vibrate. In those cases,
-and on computers without a touch screen, the button is hidden and nothing is called. The patterns
-live in the `Haptics` object in `site/game.js` (browser support checked against caniuse.com data).
+**Android (full support):** Chromium-based browsers (Chrome, Edge, Samsung Internet, Opera), in the
+browser or installed as an app, with the patterns and strengths above.
+
+**iPhone and iPad (experimental, single ticks only):** Safari, and so every iPhone/iPad browser,
+has no Vibration API. As a workaround the game clicks a hidden `<input type="checkbox" switch>`,
+which makes Safari 17.4+ play its light system tick. This is an undocumented quirk, so:
+
+- it can only play one fixed light tick, never a pattern or a strength, and each pattern above is
+  played as a series of ticks at the start of its pulses;
+- WebKit limits it to user gestures, so in practice you feel the tick when you press, release,
+  tap Play and tap the vibration button, but probably not for orbs or crashes, which happen between taps;
+- it was reportedly closed in iOS 26.5, so on newer iOS versions nothing may happen at all.
+
+Where it does not work nothing breaks. Tapping the vibration button is a quick way to check: it
+ticks once when switched on.
+
+**Firefox and computers without a touch screen:** nothing to vibrate, so the button is hidden and
+nothing is called. The patterns live in the `Haptics` object in `site/game.js` (Android support
+checked against caniuse.com data).
 
 ## Run locally
 

@@ -118,18 +118,82 @@
     best() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.22, { type: 'triangle', vol: 0.11, delay: 0.15 + i * 0.09 })); },
   };
 
-  // ---------- haptics (Vibration API) ----------
-  // Works in Chromium-based Android browsers (Chrome, Edge, Samsung Internet, Opera) and the apps
-  // installed from them. Safari (so every iPhone and iPad browser) and Firefox do not implement the
-  // Vibration API, and desktops without a touch screen have nothing to vibrate, so there `supported`
-  // is false: nothing is called and the on/off button stays hidden.
+  // ---------- haptics ----------
+  // Android: the Vibration API, in Chromium-based browsers (Chrome, Edge, Samsung Internet, Opera)
+  // and the apps installed from them, with real patterns and strengths.
+  //
+  // iPhone and iPad: Safari (so every iPhone/iPad browser) has no Vibration API. As an EXPERIMENT we
+  // use a side effect of Safari 17.4+: toggling an <input type="checkbox" switch> plays a light system
+  // tick, and clicking a hidden one from script does the same. It is an undocumented quirk: it only
+  // gives single ticks (no strength or pattern), WebKit limits it to user gestures (so mainly the
+  // press, release and Play taps, not events that happen between taps such as an orb or a crash),
+  // and it was reportedly closed in iOS 26.5. Where it does not work nothing happens and nothing breaks.
+  //
+  // Firefox, and computers without a touch screen: nothing to vibrate, so `supported` is false, no
+  // call is made and the on/off button stays hidden.
+  const UA = navigator.userAgent || '';
+  const IS_APPLE_TOUCH = /iPad|iPhone|iPod/.test(UA) || (UA.includes('Macintosh') && navigator.maxTouchPoints > 1);
+  const CAN_VIBRATE = typeof navigator.vibrate === 'function' && navigator.maxTouchPoints > 0;
+  const CAN_TICK = !CAN_VIBRATE && IS_APPLE_TOUCH;
+  const TICK_GAP_MS = 35; // never stack ticks closer than this
+
   const Haptics = {
-    supported: typeof navigator.vibrate === 'function' && navigator.maxTouchPoints > 0,
+    supported: CAN_VIBRATE || CAN_TICK,
     enabled: store.get(HAPTICS_KEY) !== '0',
+    tickLabel: null,
+    tickTimers: [],
+    lastTick: -1e9,
+    lastSwing: -1e9,
+    lastSwingOut: null,
 
     buzz(pattern) {
       if (!this.supported || !this.enabled) return;
-      try { navigator.vibrate(pattern); } catch { /* blocked, e.g. before the first tap */ }
+      if (CAN_VIBRATE) {
+        try { navigator.vibrate(pattern); } catch { /* blocked, e.g. before the first tap */ }
+      } else {
+        this.ticks(pattern);
+      }
+    },
+
+    // iPhone/iPad: play the "on" stretches of a vibration pattern as single ticks at their start times.
+    ticks(pattern) {
+      this.clearTicks();
+      let at = 0;
+      [].concat(pattern).forEach((ms, i) => {
+        if (i % 2 === 0 && ms > 0) {
+          if (at === 0) this.tick();
+          else this.tickTimers.push(setTimeout(() => this.tick(), at));
+        }
+        at += ms;
+      });
+    },
+
+    tick() {
+      const now = performance.now();
+      if (now - this.lastTick < TICK_GAP_MS) return;
+      this.lastTick = now;
+      if (!this.tickLabel) {
+        // Built once and kept in the page: invisible, off-screen, hidden from screen readers.
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = 'hapticProbe';
+        input.setAttribute('switch', '');
+        input.tabIndex = -1;
+        const label = document.createElement('label');
+        label.htmlFor = 'hapticProbe';
+        for (const el of [input, label]) {
+          el.className = 'haptic-probe';
+          el.setAttribute('aria-hidden', 'true');
+          document.body.appendChild(el);
+        }
+        this.tickLabel = label;
+      }
+      try { this.tickLabel.click(); } catch { /* unavailable */ }
+    },
+
+    clearTicks() {
+      this.tickTimers.forEach((id) => clearTimeout(id));
+      this.tickTimers = [];
     },
 
     setEnabled(on) {
@@ -140,12 +204,22 @@
 
     stop() {
       if (!this.supported) return;
+      this.clearTicks();
+      if (!CAN_VIBRATE) return;
       try { navigator.vibrate(0); } catch { /* unavailable */ }
     },
 
     confirm() { this.buzz(30); },                          // felt when switching vibration on
     start() { this.buzz(25); },
-    swing(out) { this.buzz(out ? 14 : 10); },              // a light tick on every lane change
+    // A light tick on every lane change. It is reported both from the touch handlers (inside the user
+    // gesture, which iPhones need) and from the game loop, so a repeat of the same swing is ignored.
+    swing(out) {
+      const now = performance.now();
+      if (out === this.lastSwingOut && now - this.lastSwing < 120) return;
+      this.lastSwing = now;
+      this.lastSwingOut = out;
+      this.buzz(out ? 14 : 10);
+    },
     // Orbs get stronger as the combo grows; every fifth one is a distinct triple pulse.
     orb(combo) { this.buzz(combo % 5 === 0 ? [25, 35, 45] : 14 + 3 * Math.min(combo - 1, 6)); },
     crash() { this.buzz([70, 40, 140]); },                 // heavy double thud
@@ -877,6 +951,7 @@
   function syncHapticButton() {
     ui.hapticBtn.hidden = !Haptics.supported; // no dead control on devices that cannot vibrate
     ui.hapticBtn.setAttribute('aria-pressed', String(Haptics.enabled));
+    if (!CAN_VIBRATE) ui.hapticBtn.title = 'Vibration (experimental on iPhone and iPad)';
   }
 
   function toggleHaptics() {
@@ -894,10 +969,12 @@
     pointers.add(e.pointerId);
     try { canvas.setPointerCapture(e.pointerId); } catch { /* capture unavailable */ }
     Sound.unlock();
+    if (pointers.size === 1 && !keyHeld && !needRelease) Haptics.swing(true); // swinging out starts with this touch
   });
   const pointerUp = (e) => {
     pointers.delete(e.pointerId);
     releaseCheck();
+    if (state === 'playing' && !isHolding() && run.lane === 1) Haptics.swing(false); // last finger up: falling back in
   };
   canvas.addEventListener('pointerup', pointerUp);
   canvas.addEventListener('pointercancel', pointerUp);
