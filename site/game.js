@@ -13,6 +13,7 @@
   const TRAIL_SECONDS = 0.3;
   const BEST_KEY = 'perihelion:best';
   const MUTE_KEY = 'perihelion:muted';
+  const HAPTICS_KEY = 'perihelion:haptics';
   const TAU = Math.PI * 2;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -20,7 +21,7 @@
   const ctx = canvas.getContext('2d');
   const $ = (id) => document.getElementById(id);
   const ui = {
-    pauseBtn: $('pauseBtn'), muteBtn: $('muteBtn'), scoreWrap: $('scoreWrap'), score: $('score'), combo: $('combo'),
+    pauseBtn: $('pauseBtn'), muteBtn: $('muteBtn'), hapticBtn: $('hapticBtn'), scoreWrap: $('scoreWrap'), score: $('score'), combo: $('combo'),
     menu: $('menu'), pause: $('pause'), over: $('over'),
     playBtn: $('playBtn'), resumeBtn: $('resumeBtn'), quitBtn: $('quitBtn'), againBtn: $('againBtn'), menuBtn: $('menuBtn'),
     menuBest: $('menuBest'), finalScore: $('finalScore'), finalBest: $('finalBest'), newBest: $('newBest'), stats: $('stats'),
@@ -115,6 +116,40 @@
     },
     start() { [392, 523, 659].forEach((f, i) => this.tone(f, 0.16, { type: 'triangle', vol: 0.1, delay: i * 0.07 })); },
     best() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.22, { type: 'triangle', vol: 0.11, delay: 0.15 + i * 0.09 })); },
+  };
+
+  // ---------- haptics (Vibration API) ----------
+  // Works in Chromium-based Android browsers (Chrome, Edge, Samsung Internet, Opera) and the apps
+  // installed from them. Safari (so every iPhone and iPad browser) and Firefox do not implement the
+  // Vibration API, and desktops without a touch screen have nothing to vibrate, so there `supported`
+  // is false: nothing is called and the on/off button stays hidden.
+  const Haptics = {
+    supported: typeof navigator.vibrate === 'function' && navigator.maxTouchPoints > 0,
+    enabled: store.get(HAPTICS_KEY) !== '0',
+
+    buzz(pattern) {
+      if (!this.supported || !this.enabled) return;
+      try { navigator.vibrate(pattern); } catch { /* blocked, e.g. before the first tap */ }
+    },
+
+    setEnabled(on) {
+      this.enabled = on;
+      store.set(HAPTICS_KEY, on ? '1' : '0');
+      if (!on) this.stop();
+    },
+
+    stop() {
+      if (!this.supported) return;
+      try { navigator.vibrate(0); } catch { /* unavailable */ }
+    },
+
+    confirm() { this.buzz(30); },                          // felt when switching vibration on
+    start() { this.buzz(25); },
+    swing(out) { this.buzz(out ? 14 : 10); },              // a light tick on every lane change
+    // Orbs get stronger as the combo grows; every fifth one is a distinct triple pulse.
+    orb(combo) { this.buzz(combo % 5 === 0 ? [25, 35, 45] : 14 + 3 * Math.min(combo - 1, 6)); },
+    crash() { this.buzz([70, 40, 140]); },                 // heavy double thud
+    best() { this.buzz([40, 60, 40, 60, 120]); },          // celebratory
   };
 
   // ---------- pre-rendered glow sprites ----------
@@ -353,7 +388,10 @@
     const lane = wantOut ? 1 : 0;
     if (lane !== g.lane) {
       g.lane = lane;
-      if (!g.demo) Sound.swing(wantOut);
+      if (!g.demo) {
+        Sound.swing(wantOut);
+        Haptics.swing(wantOut);
+      }
     }
     const prevR = g.r;
     g.r += (LANES[g.lane] - g.r) * (1 - Math.exp(-SWING_RATE * dt));
@@ -423,6 +461,7 @@
     burst(g, x, y, reduceMotion ? 8 : 16, 'orb', 260);
     g.popups.push({ x, y: y - 20, text: `+${pts}`, life: 0.9, max: 0.9 });
     Sound.orb(g.combo);
+    Haptics.orb(g.combo);
     if (!reduceMotion && ui.score.animate) {
       ui.score.animate([{ transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 180, easing: 'ease-out' });
     }
@@ -440,7 +479,7 @@
     g.shake = reduceMotion ? 0 : 22;
     g.flash = reduceMotion ? 0 : 0.55;
     Sound.crash();
-    try { if (navigator.vibrate) navigator.vibrate(90); } catch { /* unsupported */ }
+    Haptics.crash();
   }
 
   function burst(g, x, y, n, kind, speed) {
@@ -762,6 +801,7 @@
     if (state === 'playing' || state === 'dying' || state === 'paused') return;
     Sound.unlock();
     Sound.start();
+    Haptics.start();
     run = newRun(false);
     state = 'playing';
     needRelease = isHolding();
@@ -781,6 +821,7 @@
       best = run.score;
       store.set(BEST_KEY, String(best));
       Sound.best();
+      Haptics.best();
     }
     ui.finalScore.textContent = String(run.score);
     ui.finalBest.textContent = String(best);
@@ -800,6 +841,7 @@
   function pauseGame() {
     if (state !== 'playing') return;
     state = 'paused';
+    Haptics.stop();
     setScreen('pause');
     ui.resumeBtn.focus({ preventScroll: true });
   }
@@ -830,6 +872,17 @@
     Sound.setMuted(!Sound.muted);
     if (!Sound.muted) Sound.unlock();
     syncMuteButton();
+  }
+
+  function syncHapticButton() {
+    ui.hapticBtn.hidden = !Haptics.supported; // no dead control on devices that cannot vibrate
+    ui.hapticBtn.setAttribute('aria-pressed', String(Haptics.enabled));
+  }
+
+  function toggleHaptics() {
+    Haptics.setEnabled(!Haptics.enabled);
+    syncHapticButton();
+    Haptics.confirm();
   }
 
   // ---------- input ----------
@@ -907,6 +960,10 @@
     toggleMute();
     if (state === 'playing') focusCanvas();
   });
+  ui.hapticBtn.addEventListener('click', () => {
+    toggleHaptics();
+    if (state === 'playing') focusCanvas();
+  });
 
   // ---------- main loop ----------
   let lastFrame = performance.now();
@@ -920,6 +977,7 @@
 
   resize();
   syncMuteButton();
+  syncHapticButton();
   toMenu();
   requestAnimationFrame(frame);
 })();

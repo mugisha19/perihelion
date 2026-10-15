@@ -16,7 +16,8 @@ longer you survive.
 - Plain HTML, CSS and JavaScript with no build step and no dependencies
 - Canvas rendering, synthesized Web Audio sound effects, works on desktop and mobile
 - Installable as an app on phones and works offline (see [Install on your phone](#install-on-your-phone))
-- Best score and mute setting are kept in `localStorage`
+- Vibration feedback on Android (see [Vibration](#vibration)), with an on/off button
+- Best score, mute and vibration settings are kept in `localStorage`
 - `P` / `Esc` pauses, `M` mutes, and the game auto-pauses when the tab loses focus
 
 ```
@@ -50,6 +51,28 @@ exact steps for the browser you are using:
 
 Once installed it opens full screen with its own icon, in portrait or landscape, and keeps working
 without a connection after the first visit.
+
+## Vibration
+
+The game uses the browser's Vibration API:
+
+| Moment | Vibration |
+| --- | --- |
+| Start | short tick (25 ms) |
+| Swing out / fall back in | very light tick (14 ms / 10 ms) |
+| Grab an orb | pulse that gets stronger as your combo grows (14 ms up to 32 ms) |
+| Every 5th orb in a combo | triple pulse |
+| Crash | heavy double thud |
+| New best score | celebratory pattern |
+
+The vibration button (phone icon next to the sound button) turns it on and off, gives a short
+buzz when switched on, and remembers the choice. Pausing cancels any vibration in progress.
+
+**It works in Chromium-based Android browsers**: Chrome, Edge, Samsung Internet and Opera, in the
+browser or installed as an app. **Firefox and Safari do not support the Vibration API**, and on
+iPhones and iPads every browser uses Safari's engine, so none of them can vibrate. In those cases,
+and on computers without a touch screen, the button is hidden and nothing is called. The patterns
+live in the `Haptics` object in `site/game.js` (browser support checked against caniuse.com data).
 
 ## Run locally
 

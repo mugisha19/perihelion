@@ -2,7 +2,7 @@
 
 // Service worker: makes the game load instantly and play offline once visited.
 // Bump VERSION whenever any file in site/ changes so installed copies pick up the update.
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = `perihelion-${VERSION}`;
 const NETWORK_TIMEOUT_MS = 3000; // on a slow connection, fall back to the cached copy after this long
 

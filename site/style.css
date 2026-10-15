@@ -47,16 +47,16 @@ html, body {
   right: 0;
   z-index: 5;
   display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: 1fr auto 1fr; /* equal side columns keep the score centred however many buttons are on the right */
   grid-template-areas: "left mid right";
   align-items: start;
   padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
   pointer-events: none;
 }
 
-#pauseBtn { grid-area: left; }
+#pauseBtn { grid-area: left; justify-self: start; }
 #scoreWrap { grid-area: mid; }
-#muteBtn { grid-area: right; }
+.top-right { grid-area: right; justify-self: end; display: flex; gap: 8px; }
 
 .icon-btn {
   pointer-events: auto;
@@ -80,7 +80,13 @@ html, body {
 .icon-btn .cross { display: none; }
 .icon-btn[aria-pressed="true"] .wave { display: none; }
 .icon-btn[aria-pressed="true"] .cross { display: inline; }
-.icon-btn[aria-pressed="true"] { color: var(--muted); }
+#muteBtn[aria-pressed="true"] { color: var(--muted); } /* pressed means muted */
+
+/* Vibration button: outline icon; pressed means vibration is ON, so it dims and gets a slash when off. */
+.icon-btn .line-icon { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn .slash { display: none; }
+#hapticBtn[aria-pressed="false"] { color: var(--muted); }
+#hapticBtn[aria-pressed="false"] .slash { display: inline; }
 
 .score-wrap { text-align: center; line-height: 1; padding-top: 2px; }
 .score {
