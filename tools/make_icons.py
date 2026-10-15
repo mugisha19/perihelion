@@ -19,7 +19,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "site" / "icons"
 FONT = "C:/Windows/Fonts/seguibl.ttf"  # Segoe UI Black
-DEFAULT_VARIANT = "classic"
+DEFAULT_VARIANT = "monogram"
 SS = 4  # supersampling factor for smooth edges
 
 BG_EDGE = (4, 5, 13)

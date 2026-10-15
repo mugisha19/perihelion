@@ -1,6 +1,12 @@
-# Perihelion
+# Lost in a Daydream
+
+Developed by Liad.
 
 **Play it: https://d2a8lxlkw7uke9.cloudfront.net**
+
+> The game was first built under the working name *Perihelion*, so the repository, the project
+> folder and the AWS stack (`perihelion-game`) still use that name. Players only ever see
+> "Lost in a Daydream" (home-screen label: "Daydream").
 
 A one-button arcade game for the browser. Your ship orbits a burning star on two lanes:
 **hold** (Space, Up arrow, W, mouse, or touch) to swing out to the outer orbit and **release** to fall
@@ -23,20 +29,24 @@ perihelion/
     sw.js                service worker: offline cache
     manifest.webmanifest app name, colours and icons for installing
     favicon.svg
-    icons/               app icons (regular, maskable and iOS)
+    icons/               app icons: the glowing L monogram (regular, maskable and iOS)
   infra/
     template.yaml        CloudFormation stack: private S3 bucket + CloudFront
   tools/
-    make_icons.py        regenerates site/icons/ (needs Pillow)
+    make_icons.py        regenerates site/icons/ (needs Pillow; also has other logo variants)
 ```
 
 ## Install on your phone
 
 The game is a progressive web app, so there is nothing to download from an app store:
 
-- **Android (Chrome, Edge, Samsung Internet):** tap **Install app** on the menu, or use the browser
-  menu and choose **Install app** / **Add to Home screen**.
-- **iPhone / iPad (Safari):** tap the **Share** button, then **Add to Home Screen**.
+Tap **Install app** on the menu. Chrome and Edge install it right away. Safari, other iPhone
+browsers and Firefox cannot be triggered by a website, so the button opens a short guide with the
+exact steps for the browser you are using:
+
+- **Android (Chrome, Edge, Samsung Internet):** one tap, or browser menu, **Install app** / **Add to Home screen**.
+- **iPhone / iPad (Safari, and Chrome on recent iOS):** **Share** button, then **Add to Home Screen**.
+- **Inside Instagram, Facebook and similar apps:** open the page in Safari or Chrome first, those in-app browsers cannot install.
 
 Once installed it opens full screen with its own icon, in portrait or landscape, and keeps working
 without a connection after the first visit.

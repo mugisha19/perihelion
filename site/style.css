@@ -130,6 +130,7 @@ html, body {
 }
 
 h1 {
+  text-wrap: balance; /* a long title breaks into two even lines instead of one long and one short */
   margin: 0 0 6px;
   font-size: clamp(34px, 9vw, 46px);
   font-weight: 800;
@@ -203,6 +204,15 @@ h2.eyebrow {
 
 .install { margin-top: 16px; min-width: 0; padding: 10px 22px; font-size: 13px; }
 
+.credit {
+  margin: 18px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
 .steps {
   margin: 0 0 20px;
   padding: 14px 16px 14px 34px;
@@ -261,6 +271,7 @@ h2.eyebrow {
   .best { margin-top: 8px; }
   .hint { margin-top: 6px; }
   .install { margin-top: 8px; padding: 8px 18px; }
+  .credit { margin-top: 8px; padding-top: 8px; }
   .steps { margin-bottom: 10px; padding: 8px 12px 8px 30px; font-size: 13px; line-height: 1.35; }
   .steps li + li { margin-top: 4px; }
   .final { font-size: 44px; }

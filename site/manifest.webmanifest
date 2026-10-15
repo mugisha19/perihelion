@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Perihelion",
-  "short_name": "Perihelion",
-  "description": "A one-button arcade game. Hold to swing out to the outer orbit, release to fall back in, and dodge the debris circling a burning star.",
+  "name": "Lost in a Daydream",
+  "short_name": "Daydream",
+  "description": "A one-button arcade game. Hold to swing out to the outer orbit, release to fall back in, and dodge the debris circling a burning star. Developed by Liad.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
