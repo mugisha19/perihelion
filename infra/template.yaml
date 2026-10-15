@@ -117,9 +117,9 @@ Resources:
     Type: AWS::CloudFront::ResponseHeadersPolicy
     Metadata:
       com.aws.cloudformation.Context:
-        why: adds CSP, HSTS, nosniff, frame deny & permissions policy at the edge; site has no inline scripts/styles so CSP can be 'self' only
+        why: adds CSP, HSTS, nosniff, frame deny & permissions policy at the edge; site has no inline scripts/styles so CSP can be 'self' only; PWA needs manifest-src (else default-src none blocks the manifest), worker-src for sw.js and connect-src for the service worker's own fetches
         must:
-          - CSP must allow 'self' for script, style and img or the game will not load
+          - CSP must allow 'self' for script, style, img, manifest, worker and connect or the game/PWA will not load
         mutable: review-required
     Properties:
       ResponseHeadersPolicyConfig:
@@ -127,7 +127,7 @@ Resources:
         Comment: Security headers for the Perihelion game
         SecurityHeadersConfig:
           ContentSecurityPolicy:
-            ContentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+            ContentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
             Override: true
           ContentTypeOptions:
             Override: true

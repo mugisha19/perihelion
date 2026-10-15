@@ -22,8 +22,10 @@ html, body {
   color: var(--ink);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  touch-action: manipulation; /* no double-tap zoom on buttons; the canvas disables touch gestures itself */
 }
 
 #game {
@@ -108,13 +110,15 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 72px 16px 24px;
+  padding: 72px max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  overflow-y: auto; /* short screens (phones in landscape) can scroll instead of clipping */
   background: radial-gradient(ellipse at center, rgba(4, 5, 13, 0.2), rgba(4, 5, 13, 0.7) 75%);
 }
 
 .card {
   width: 100%;
   max-width: 380px;
+  margin: auto; /* centres vertically but, unlike align-items, never clips the top when it overflows */
   padding: 28px 26px 22px;
   text-align: center;
   background: var(--panel);
@@ -197,6 +201,9 @@ h2.eyebrow {
 
 .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
+.install { margin-top: 16px; min-width: 0; padding: 10px 22px; font-size: 13px; }
+.hint-ios { color: var(--ink); opacity: 0.75; }
+
 /* ---------- buttons ---------- */
 
 .btn {
@@ -229,6 +236,22 @@ h2.eyebrow {
 
 .btn:focus-visible,
 .icon-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+/* Short viewports, mainly phones held sideways: tighten everything so each screen fits. */
+@media (max-height: 520px) {
+  .screen { padding-top: 56px; padding-bottom: 12px; }
+  .card { max-width: 440px; padding: 14px 22px 14px; }
+  h1 { margin-bottom: 2px; font-size: 28px; }
+  h2 { margin-bottom: 10px; font-size: 22px; }
+  .tag { margin-bottom: 10px; font-size: 13px; }
+  .legend { display: none; }
+  .btn { padding: 10px 24px; font-size: 14px; }
+  .best { margin-top: 8px; }
+  .hint { margin-top: 6px; }
+  .install { margin-top: 8px; padding: 8px 18px; }
+  .final { font-size: 44px; }
+  .stats { margin-bottom: 12px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }

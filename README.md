@@ -9,19 +9,37 @@ longer you survive.
 
 - Plain HTML, CSS and JavaScript with no build step and no dependencies
 - Canvas rendering, synthesized Web Audio sound effects, works on desktop and mobile
+- Installable as an app on phones and works offline (see [Install on your phone](#install-on-your-phone))
 - Best score and mute setting are kept in `localStorage`
 - `P` / `Esc` pauses, `M` mutes, and the game auto-pauses when the tab loses focus
 
 ```
 perihelion/
-  site/              the game (this folder is what gets uploaded)
+  site/                  the game (this folder is what gets uploaded)
     index.html
     style.css
-    game.js
+    game.js              the game itself
+    pwa.js               service worker registration and the install button
+    sw.js                service worker: offline cache
+    manifest.webmanifest app name, colours and icons for installing
     favicon.svg
+    icons/               app icons (regular, maskable and iOS)
   infra/
-    template.yaml    CloudFormation stack: private S3 bucket + CloudFront
+    template.yaml        CloudFormation stack: private S3 bucket + CloudFront
+  tools/
+    make_icons.py        regenerates site/icons/ (needs Pillow)
 ```
+
+## Install on your phone
+
+The game is a progressive web app, so there is nothing to download from an app store:
+
+- **Android (Chrome, Edge, Samsung Internet):** tap **Install app** on the menu, or use the browser
+  menu and choose **Install app** / **Add to Home screen**.
+- **iPhone / iPad (Safari):** tap the **Share** button, then **Add to Home Screen**.
+
+Once installed it opens full screen with its own icon, in portrait or landscape, and keeps working
+without a connection after the first visit.
 
 ## Run locally
 
@@ -45,7 +63,9 @@ browser --HTTPS--> CloudFront (edge cache, security headers) --OAC / SigV4--> pr
   this one distribution (`aws:SourceArn`), so the bucket is never public.
 - **Response headers policy** adds a strict Content-Security-Policy (`'self'` only, which is why
   the game has no inline scripts or styles), HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`,
-  `Referrer-Policy` and `Permissions-Policy`.
+  `Referrer-Policy` and `Permissions-Policy`. The CSP explicitly allows `'self'` for `manifest-src`,
+  `worker-src` and `connect-src`; without them `default-src 'none'` would block the web app manifest
+  and the service worker's own requests.
 - HTTP redirects to HTTPS, HTTP/2 and HTTP/3, IPv6, and gzip/brotli compression are enabled.
 
 Deployed as CloudFormation stack `perihelion-game` in `eu-central-1`.
@@ -67,11 +87,24 @@ blocks, with the reasons recorded next to them:
 
 ## Redeploy after changing the game
 
-Equivalent AWS CLI commands (replace the placeholders with the stack outputs `BucketName` and
-`DistributionId`):
+**First bump `VERSION` in `site/sw.js`** (for example `v1` to `v2`). Installed copies of the app
+only refresh their offline cache when the service worker file changes.
+
+Then upload and invalidate. Replace the placeholders with the stack outputs `BucketName` and
+`DistributionId`. The manifest and service worker are uploaded separately because they need a
+specific content type and cache header, and `sw.js` goes last so no browser can fetch a service
+worker that points at files that are not uploaded yet:
 
 ```bash
-aws s3 sync perihelion/site s3://<BucketName> --delete --cache-control "public, max-age=300" --region eu-central-1
+aws s3 sync perihelion/site s3://<BucketName> --delete --exclude sw.js --exclude manifest.webmanifest --cache-control "public, max-age=300" --region eu-central-1
+```
+
+```bash
+aws s3 cp perihelion/site/manifest.webmanifest s3://<BucketName>/ --content-type application/manifest+json --cache-control "public, max-age=300" --region eu-central-1
+```
+
+```bash
+aws s3 cp perihelion/site/sw.js s3://<BucketName>/ --content-type "text/javascript; charset=utf-8" --cache-control no-cache --region eu-central-1
 ```
 
 ```bash
@@ -79,7 +112,10 @@ aws cloudfront create-invalidation --distribution-id <DistributionId> --paths "/
 ```
 
 Files are served with `Cache-Control: public, max-age=300`, so even without an invalidation
-visitors get the new version within about five minutes.
+visitors get the new version within about five minutes. The invalidation matters for the service
+worker: it caches fresh copies when it installs, so it should not read stale ones from the edge.
+
+If you change the icons, edit `tools/make_icons.py` and run `python tools/make_icons.py`.
 
 To change the infrastructure, edit `infra/template.yaml` and update the stack:
 
@@ -99,6 +135,7 @@ aws cloudformation delete-stack --stack-name perihelion-game --region eu-central
 ## Cost
 
 There are no fixed monthly charges. CloudFront's always-free tier covers 1 TB of data transfer
-and 10 million requests a month, and storing the ~40 KB site in S3 costs a fraction of a cent.
+and 10 million requests a month, and storing the ~320 KB site (mostly icons) in S3 costs a fraction
+of a cent. Installed copies load from their offline cache, so they add almost no traffic.
 Invalidations are not part of the free tier, but the first 1,000 invalidation paths each month
 are free, and `/*` counts as one path.
